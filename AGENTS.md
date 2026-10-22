@@ -446,8 +446,8 @@ When you (an AI agent) are dropped into this directory for the first time:
 
 | Date | Version | Changes |
 |------|---------|---------|
-| May 17, 2026 | v1.0.0 | Initial creation — all 51 features + 10 extras |
-| May 17, 2026 | v1.1.0 | AI Chat fixes: corrected CLI syntax (hermes `chat -q`, gemini positional), switched Hermes default to OpenRouter + Owl Alpha, improved timeout/error handling, updated execute_agent fallback logic |
+| May 17, 2026 | v1.0 | Initial creation — all 51 features + 10 extras |
+| May 17, 2026 | v1.1 | AI Chat fixes: corrected CLI syntax (hermes `chat -q`, gemini positional), switched Hermes default to OpenRouter + Owl Alpha, improved timeout/error handling, updated execute_agent fallback logic |
 | Aug 11, 2026 | v4.0 | **agy (Antigravity) replaces Gemini CLI** across backend, routing, frontend, skills, agents/, docs; **port auto-kill** in start.sh; **apscheduler auto-install** in scheduler.py; **Chat History Search** (`q`/`agent`/`limit` + History page); **Chat File Attachments** (`/api/chat/upload`, 2 MB allowlist, 24h TTL); **Memory Knowledge Graph** (`/api/memory/graph` + Canvas renderer); **Code Diff Viewer** (`/api/diff` + Skills page button); **74 tests** (59 → 74, 15 new isolated v4.0 tests) |
 
 ---

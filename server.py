@@ -493,7 +493,7 @@ def install_plugin(data: dict):
     reg["plugins"].append({
         "name": name,
         "installed": get_timestamp(),
-        "version": "1.0.0",
+        "version": "1.0",
     })
     reg_file.write_text(json.dumps(reg, indent=2))
     append_audit({"action": "plugin_installed", "plugin": name})
