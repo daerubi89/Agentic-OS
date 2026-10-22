@@ -55,28 +55,28 @@ A locally-hosted operating system for AI agents — an open-source GitHub reposi
 ## 🏗 Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                                AGENTIC OS DASHBOARD                                                 │
-│                                  FastAPI + Tailwind SPA                                                      │
-├──────────────────────────────────────────────────────────────┤
-│                                                                                                                             │
-│  ┌───────────────┐  ┌────────────────┐  ┌────────────────────┐    │
-│  │    opencode            │  │    Hermes                │  │    agy CLI                      │    │
-│  │  (Code/DevOps)     │  │ (Memory/Sched)    │  │   (Research/Analy)          │    │
-│  │   File Ops)              │  │  /Channels)             │  │                                        │    │
-│  └───────────────┘  └────────────────┘  └────────────────────┘    │
-│                                                                                                                             │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                 7 CORE LAYERS (Stacked)                                                          │  │
-│  │  Layer 7: Identity / Persona / Constitution                                                  │  │
-│  │  Layer 6: Self-Evolution + Capability Manager                                              │  │
-│  │  Layer 5: Scheduler + Awareness + Health Guardian                                    │  │
-│  │  Layer 4: Memory Graph + Memory Consolidation                                         │  │
-│  │  Layer 3: Skills Hub + Eval + Learnings Loop                                                 │  │
-│  │  Layer 2: Business Brain + Context Folders                                                  │  │
-│  │  Layer 1: Agent Router + Standards + Profiles                                             │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                   AGENTIC OS DASHBOARD                   │
+│                  FastAPI + Tailwind SPA                  │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│   │   opencode   │  │    Hermes    │  │   agy CLI    │   │
+│   │ (Code/DevOps)│  │(Memory/Sched)│  │  (Research/  │   │
+│   │  (File Ops)  │  │ (/Channels)  │  │   Analysis)  │   │
+│   └──────────────┘  └──────────────┘  └──────────────┘   │
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │              7 CORE LAYERS (Stacked)               │  │
+│  │  Layer 7: Identity / Persona / Constitution        │  │
+│  │  Layer 6: Self-Evolution + Capability Manager      │  │
+│  │  Layer 5: Scheduler + Awareness + Health Guardian  │  │
+│  │  Layer 4: Memory Graph + Memory Consolidation      │  │
+│  │  Layer 3: Skills Hub + Eval + Learnings Loop       │  │
+│  │  Layer 2: Business Brain + Context Folders         │  │
+│  │  Layer 1: Agent Router + Standards + Profiles      │  │
+│  └────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ### Agent Responsibilities
