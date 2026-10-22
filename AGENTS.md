@@ -274,13 +274,13 @@ Your role is to act as the **kernel** of this system: route tasks to the right a
 │       ├── standards.js
 │       ├── settings.js
 │       ├── setup-wizard.js
-│       ├── kanban.js          # [F52] Kanban Board (v0.2.0)
-│       ├── goals.js           # [F53] Goals (v0.2.0)
-│       ├── journal.js         # [F54] Journal (v0.2.0)
-│       ├── agent-health.js    # [F55] Agent Health (v0.2.0)
-│       ├── smart-router.js    # [F56] Smart Router (v0.2.0)
-│       ├── learning-analytics.js # [F57] Learning Analytics (v0.2.0)
-│       └── session-replay.js  # [F58] Session Replay (v0.2.0)
+│       ├── kanban.js          # [F52] Kanban Board (v2.0)
+│       ├── goals.js           # [F53] Goals (v2.0)
+│       ├── journal.js         # [F54] Journal (v2.0)
+│       ├── agent-health.js    # [F55] Agent Health (v2.0)
+│       ├── smart-router.js    # [F56] Smart Router (v2.0)
+│       ├── learning-analytics.js # [F57] Learning Analytics (v2.0)
+│       └── session-replay.js  # [F58] Session Replay (v2.0)
 │
 ├── audit/                     # [F38] Audit Trail
 │   └── audit.log
@@ -354,7 +354,7 @@ When you (an AI agent) are dropped into this directory for the first time:
 
 ---
 
-## API Endpoints (server.py FastAPI, 58 total — 28 original + 30 v0.2.0)
+## API Endpoints (server.py FastAPI, 58 total — 28 original + 30 v2.0)
 
 ### Core (28 original endpoints)
 | Method | Endpoint | Purpose |
@@ -382,7 +382,7 @@ When you (an AI agent) are dropped into this directory for the first time:
 | GET | `/api/standards` | List standards |
 | POST | `/api/standards/discover` | Run standards discovery |
 
-### Kanban Board (v0.2.0) — 13 endpoints
+### Kanban Board (v2.0) — 13 endpoints
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | GET | `/api/kanban/board` | Get kanban board (all columns + tasks) |
@@ -399,7 +399,7 @@ When you (an AI agent) are dropped into this directory for the first time:
 | POST | `/api/kanban/tasks/{id}/specify` | Generate spec |
 | POST | `/api/kanban/tasks/{id}/decompose` | Decompose into subtasks |
 
-### Goals (v0.2.0) — 4 endpoints
+### Goals (v2.0) — 4 endpoints
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | GET | `/api/goals` | List all goals |
@@ -407,7 +407,7 @@ When you (an AI agent) are dropped into this directory for the first time:
 | PUT | `/api/goals/{id}` | Update goal progress/status |
 | DELETE | `/api/goals/{id}` | Delete goal |
 
-### Journal (v0.2.0) — 4 endpoints
+### Journal (v2.0) — 4 endpoints
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | GET | `/api/journal/entries` | List all entry dates |
@@ -415,26 +415,26 @@ When you (an AI agent) are dropped into this directory for the first time:
 | PUT | `/api/journal/entries/{date}` | Save entry (creates/updates brain/journal/YYYY-MM-DD.md) |
 | GET | `/api/journal/search?q=` | Full-text search across entries |
 
-### Agent Health (v0.2.0) — 3 endpoints
+### Agent Health (v2.0) — 3 endpoints
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | GET | `/api/agents/health` | Get live status of all 3 agents |
 | GET | `/api/agents/{name}/stats` | Get per-agent statistics |
 | POST | `/api/agents/health/refresh` | Force refresh all status checks |
 
-### Smart Router (v0.2.0) — 2 endpoints
+### Smart Router (v2.0) — 2 endpoints
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | POST | `/api/router/suggest` | Suggest best agent for a task description |
 | POST | `/api/router/route` | Route task to a specific agent |
 
-### Learning Analytics (v0.2.0) — 2 endpoints
+### Learning Analytics (v2.0) — 2 endpoints
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | GET | `/api/analytics/skills` | Skill evaluation scores across all skills |
 | GET | `/api/analytics/trends` | Score history trends per skill |
 
-### Session Replay (v0.2.0) — 2 endpoints
+### Session Replay (v2.0) — 2 endpoints
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | GET | `/api/sessions/list` | List opencode sessions |
@@ -448,7 +448,7 @@ When you (an AI agent) are dropped into this directory for the first time:
 |------|---------|---------|
 | May 17, 2026 | v1.0.0 | Initial creation — all 51 features + 10 extras |
 | May 17, 2026 | v1.1.0 | AI Chat fixes: corrected CLI syntax (hermes `chat -q`, gemini positional), switched Hermes default to OpenRouter + Owl Alpha, improved timeout/error handling, updated execute_agent fallback logic |
-| Aug 11, 2026 | v0.4.0 | **agy (Antigravity) replaces Gemini CLI** across backend, routing, frontend, skills, agents/, docs; **port auto-kill** in start.sh; **apscheduler auto-install** in scheduler.py; **Chat History Search** (`q`/`agent`/`limit` + History page); **Chat File Attachments** (`/api/chat/upload`, 2 MB allowlist, 24h TTL); **Memory Knowledge Graph** (`/api/memory/graph` + Canvas renderer); **Code Diff Viewer** (`/api/diff` + Skills page button); **74 tests** (59 → 74, 15 new isolated v0.4.0 tests) |
+| Aug 11, 2026 | v4.0 | **agy (Antigravity) replaces Gemini CLI** across backend, routing, frontend, skills, agents/, docs; **port auto-kill** in start.sh; **apscheduler auto-install** in scheduler.py; **Chat History Search** (`q`/`agent`/`limit` + History page); **Chat File Attachments** (`/api/chat/upload`, 2 MB allowlist, 24h TTL); **Memory Knowledge Graph** (`/api/memory/graph` + Canvas renderer); **Code Diff Viewer** (`/api/diff` + Skills page button); **74 tests** (59 → 74, 15 new isolated v4.0 tests) |
 
 ---
 

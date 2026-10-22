@@ -4,9 +4,9 @@
 - Building Agentic OS (May 2026)
 - 3-agent system: opencode + Hermes + agy
 - Web dashboard on FastAPI
-- v0.2.0 released Jun 5, 2026 — 68 features (51 ref + 10 extras + 7 new), 58 endpoints, 20 pages
+- v2.0 released Jun 5, 2026 — 68 features (51 ref + 10 extras + 7 new), 58 endpoints, 20 pages
 
-## v0.2.0 Features
+## v2.0 Features
 - Kanban Board: 6-column task management via data/kanban/ JSON files
 - Goals: Project targets auto-synced to brain/active-projects.md via data/goals.json
 - Journal: Daily entries stored as brain/journal/YYYY-MM-DD.md

@@ -1,6 +1,6 @@
-"""v0.4.0 feature tests: chat history filter, file uploads, memory graph, diff.
+"""v4.0 feature tests: chat history filter, file uploads, memory graph, diff.
 
-Run with: python3 tests/run_all.py  (or: python3 tests/test_v040.py)
+Run with: python3 tests/run_all.py  (or: python3 tests/test_v40.py)
 """
 import sys
 import unittest

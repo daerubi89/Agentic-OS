@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Zero-dependency test runner for Agentic OS (v0.4.0).
+"""Zero-dependency test runner for Agentic OS (v4.0).
 
 Usage:  python3 tests/run_all.py
 
@@ -17,14 +17,14 @@ import test_core  # noqa: E402
 import test_security  # noqa: E402
 import test_kanban_journal  # noqa: E402
 import test_memory_scheduler  # noqa: E402
-import test_v040  # noqa: E402
+import test_v40  # noqa: E402
 
 
 def main() -> int:
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
     for module in (test_core, test_security, test_kanban_journal,
-                   test_memory_scheduler, test_v040):
+                   test_memory_scheduler, test_v40):
         suite.addTests(loader.loadTestsFromModule(module))
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)

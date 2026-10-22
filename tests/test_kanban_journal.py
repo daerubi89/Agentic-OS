@@ -1,4 +1,4 @@
-"""Kanban + Journal CRUD tests for Agentic OS (v0.4.0)."""
+"""Kanban + Journal CRUD tests for Agentic OS (v4.0)."""
 import sys
 import unittest
 from pathlib import Path

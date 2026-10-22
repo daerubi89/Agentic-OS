@@ -1,4 +1,4 @@
-"""Core endpoint smoke tests for Agentic OS (v0.4.0).
+"""Core endpoint smoke tests for Agentic OS (v4.0).
 
 Run with: python3 tests/run_all.py  (or: python3 tests/test_core.py)
 """

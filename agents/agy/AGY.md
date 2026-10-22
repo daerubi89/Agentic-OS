@@ -1,7 +1,7 @@
 # agy (Antigravity) — Agentic OS Config
 
 The **agy** CLI (Antigravity) replaces the deprecated `gemini` CLI as the
-research/analysis agent in Agentic OS (v0.4.0).
+research/analysis agent in Agentic OS (v4.0).
 
 - Use the `agy` binary from the CLI
 - Non-interactive mode: `agy --print "<query>"`

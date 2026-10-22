@@ -84,7 +84,7 @@ def search(query: str, limit: int = 20) -> list:
     return [dict(r) for r in rows]
 
 def build_graph() -> dict:
-    """Build a knowledge graph from the FTS5 index + entity table (v0.4.0).
+    """Build a knowledge graph from the FTS5 index + entity table (v4.0).
 
     Nodes: brain files, skills, journal entries, extracted entities.
     Edges: file->entity co-occurrence, entity co-occurrence in same source.

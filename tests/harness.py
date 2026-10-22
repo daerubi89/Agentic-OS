@@ -1,4 +1,4 @@
-"""Zero-dependency test harness for Agentic OS (v0.4.0).
+"""Zero-dependency test harness for Agentic OS (v4.0).
 
 Boots the real FastAPI app (server.app) in-process on a free port with ALL
 state redirected to a temporary directory, so tests never touch real

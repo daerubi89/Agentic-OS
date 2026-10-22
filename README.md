@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/FastAPI-0.115+-green.svg" alt="FastAPI"/>
   <img src="https://img.shields.io/badge/agents-3-orange.svg" alt="3 Agents"/>
   <img src="https://img.shields.io/badge/skills-15-purple.svg" alt="15 Skills"/>
-  <img src="https://img.shields.io/badge/version-v0.4.0-blueviolet.svg" alt="v0.4.0"/>
+  <img src="https://img.shields.io/badge/version-v4.0-blueviolet.svg" alt="v4.0"/>
   <img src="https://img.shields.io/badge/status-stable-brightgreen.svg" alt="Status: Stable"/>
   <a href="https://dev.to/mihir_nmodi_14a06a4019e1/i-built-an-open-source-agent-os-2h30"><img src="https://img.shields.io/badge/dev.to-article-blue.svg" alt="dev.to article"/></a>
   <br/><br/>
@@ -164,12 +164,12 @@ agentic-os/
 │   ├── api.js             # API client (all endpoints)
 │   ├── styles.css         # Full dark/light theme CSS
 │   ├── utils.js           # Shared utilities
-│   └── pages/             # 22 page modules (13 original + 7 v0.2.0 + 1 v0.3.0 + 1 v0.4.0)
+│   └── pages/             # 22 page modules (13 original + 7 v2.0 + 1 v3.0 + 1 v4.0)
 │       ├── dashboard.js   # Overview with stats
 │       ├── skills.js      # Skill grid/list/detail
 │       ├── memory.js      # Brain file editor + Knowledge Graph
 │       ├── chat.js        # Multi-agent chat + file attachments
-│       ├── history.js     # ▸ Chat History Search (v0.4.0)
+│       ├── history.js     # ▸ Chat History Search (v4.0)
 │       ├── scheduler.js   # Cron job manager
 │       ├── audit.js       # Activity trail
 │       ├── cost.js        # Cost analytics charts
@@ -179,17 +179,17 @@ agentic-os/
 │       ├── standards.js   # Code conventions
 │       ├── settings.js    # Config editor
 │       ├── setup-wizard.js  # Guided setup
-│       ├── kanban.js      # ▸ Kanban Board (v0.2.0)
-│       ├── goals.js       # ▸ Goals (v0.2.0)
-│       ├── journal.js     # ▸ Journal (v0.2.0)
-│       ├── agent-health.js # ▸ Agent Health (v0.2.0)
-│       ├── smart-router.js # ▸ Smart Router (v0.2.0)
-│       ├── learning-analytics.js # ▸ Learning Analytics (v0.2.0)
-│       ├── session-replay.js # ▸ Session Replay (v0.2.0)
-│       └── errors.js       # ▸ Error Dashboard (v0.3.0)
+│       ├── kanban.js      # ▸ Kanban Board (v2.0)
+│       ├── goals.js       # ▸ Goals (v2.0)
+│       ├── journal.js     # ▸ Journal (v2.0)
+│       ├── agent-health.js # ▸ Agent Health (v2.0)
+│       ├── smart-router.js # ▸ Smart Router (v2.0)
+│       ├── learning-analytics.js # ▸ Learning Analytics (v2.0)
+│       ├── session-replay.js # ▸ Session Replay (v2.0)
+│       └── errors.js       # ▸ Error Dashboard (v3.0)
 │
 ├── brain/                 # Shared context (all agents read)
-│   ├── memory_search.py   # ▸ SQLite FTS5 search (v0.3.0)
+│   ├── memory_search.py   # ▸ SQLite FTS5 search (v3.0)
 │   ├── business-brain.md  # Current project context
 │   ├── memory.md          # Accumulated knowledge
 │   ├── recent-decisions.md
@@ -228,7 +228,7 @@ agentic-os/
 
 ---
 
-## 🆕 What's New in v0.4.0
+## 🆕 What's New in v4.0
 
 | Feature | Description |
 |---------|-------------|
@@ -244,11 +244,11 @@ agentic-os/
 | **📐 Zoom-Proof Layout** | Content width capped at 1600px, responsive file-card grid, and `flex-shrink: 0` on tab bars — layout stays clean from 60% to 100% zoom |
 | **🔢 Correct Skill Count** | Skills badge now counts skill directories (15) via the status endpoint instead of returning 0 |
 
-During the v0.4.0 hardening pass the following **layout & caching bugs** were crushed: tab bars (Files/Knowledge Graph, Grid/List) collapsing to 1px under content at certain zooms, oversized cards stretching to 3500px+ at 50% zoom, cached index.html referencing dead asset URLs, and the sidebar Skills badge showing 0.
+During the v4.0 hardening pass the following **layout & caching bugs** were crushed: tab bars (Files/Knowledge Graph, Grid/List) collapsing to 1px under content at certain zooms, oversized cards stretching to 3500px+ at 50% zoom, cached index.html referencing dead asset URLs, and the sidebar Skills badge showing 0.
 
 ---
 
-## 🆕 What's New in v0.3.0
+## 🆕 What's New in v3.0
 
 | Feature | Description |
 |---------|-------------|
@@ -273,7 +273,7 @@ During the v0.4.0 hardening pass the following **layout & caching bugs** were cr
 
 ---
 
-## 🆕 What's New in v0.2.0
+## 🆕 What's New in v2.0
 
 | Feature | Description |
 |---------|-------------|
@@ -314,43 +314,43 @@ Create cron jobs: heartbeat (5 min), memory consolidation (weekly), daily standu
 ### Cost Analytics
 Track spending per provider/model/agent. Free-tier alerts warn when nearing limits.
 
-### Kanban Board (v0.2.0)
+### Kanban Board (v2.0)
 Drag tasks across columns, filter by priority/category, click to view details. Block tasks when blocked, mark complete when done.
 
-### Goals (v0.2.0)
+### Goals (v2.0)
 Create goals with categories and target dates. Progress tracked via +25% increments. Completed goals auto-sync to brain context.
 
-### Journal (v0.2.0)
+### Journal (v2.0)
 Write daily entries with markdown support. Auto-saves after 2 seconds. Search across all entries from the dashboard.
 
-### Smart Router (v0.2.0)
+### Smart Router (v2.0)
 Describe a task in plain English — the router analyzes keywords and suggests the best agent. Route manually or let AI decide.
 
-### Agent Health (v0.2.0)
+### Agent Health (v2.0)
 Monitor online status of all 3 agents in real time with 5-second auto-refresh. Health checks are filesystem-based (no subprocess calls).
 
-### Learning Analytics (v0.2.0)
+### Learning Analytics (v2.0)
 View evaluation scores for all 15 skills. Trends chart shows score progression over time. Top skills ranked by performance.
 
-### Session Replay (v0.2.0)
+### Session Replay (v2.0)
 Browse opencode session logs by date and size. Click "Replay" to view all messages in a chat-like interface.
 
-### Error Dashboard (v0.3.0)
+### Error Dashboard (v3.0)
 View system errors grouped by category (agent, skill, API, system). Filter by category, clear all errors. Circuit breaker cards show per-agent failure state — reset from the dashboard.
 
-### Event-Driven Scheduler (v0.3.0)
+### Event-Driven Scheduler (v3.0)
 Jobs auto-reload when JSON files in `scheduler/jobs/` change. Trigger skills via webhooks at `POST /api/webhook` with `{"skill": "skill-name", "payload": {...}}`. Manual trigger at `/api/scheduler/trigger/{job_id}`.
 
-### Persistent Memory Search (v0.3.0)
+### Persistent Memory Search (v3.0)
 Full-text search across all brain files, skills, and journal entries via SQLite FTS5. Query at `GET /api/memory/search?q=...` with highlighted snippets. Reindex at `POST /api/memory/reindex`. Entities (persons, emails, URLs) auto-extracted.
 
-### Auto-Skill Generator (v0.3.0)
+### Auto-Skill Generator (v3.0)
 Create new skills from natural language: `POST /api/skills/generate` with `{"name": "my-skill", "description": "Does X by doing Y"}`. Generates SKILL.md, eval.json, learnings.md, and context folder.
 
-### Webhooks (v0.3.0)
+### Webhooks (v3.0)
 `POST /api/webhook` — trigger any skill by name. `POST /api/webhook/generic` — catch-all for external tool integration (GitHub, CI/CD, etc.).
 
-### Mobile PWA (v0.3.0)
+### Mobile PWA (v3.0)
 Open Agentic OS on your phone — bottom nav bar replaces sidebar, touch targets are 44px+, service worker caches assets. Add to home screen for app-like experience.
 
 ---

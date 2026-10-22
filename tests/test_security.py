@@ -1,4 +1,4 @@
-"""Security hardening tests — path-traversal / injection guards (v0.4.0).
+"""Security hardening tests — path-traversal / injection guards (v4.0).
 
 Validates the strict allowlist validation added in commit 4af5ea3:
 skill names, kanban task ids, journal dates, scheduler job names, backup files.

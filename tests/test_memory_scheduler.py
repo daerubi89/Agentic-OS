@@ -1,4 +1,4 @@
-"""Memory (FTS5 search) + Scheduler tests for Agentic OS (v0.4.0)."""
+"""Memory (FTS5 search) + Scheduler tests for Agentic OS (v4.0)."""
 import sys
 import unittest
 from pathlib import Path

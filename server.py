@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
-app = FastAPI(title="Agentic OS", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="Agentic OS", version="4.0", lifespan=lifespan)
 
 # Load OpenRouter API key from Hermes .env
 HERMES_ENV = Path.home() / ".hermes" / ".env"
@@ -65,7 +65,7 @@ app.add_middleware(
 )
 
 # No-cache for dashboard assets — SPA JS is loaded on demand and updated
-# frequently during development (v0.4.0). Prevents stale-cached pages.
+# frequently during development (v4.0). Prevents stale-cached pages.
 from starlette.middleware.base import BaseHTTPMiddleware
 
 class NoCacheMiddleware(BaseHTTPMiddleware):
@@ -571,7 +571,7 @@ def update_settings(data: SettingsUpdate):
     append_audit({"action": "settings_updated"})
     return {"status": "ok"}
 
-# ─── Routes: Webhooks & Scheduler Events (v0.3.0) ─────────────────
+# ─── Routes: Webhooks & Scheduler Events (v3.0) ─────────────────
 
 @app.post("/api/webhook")
 def webhook_receiver(data: dict):
@@ -614,7 +614,7 @@ def generic_webhook(data: dict):
         append_audit({"action": "generic_webhook", "source": source, "event": event, "skill": skill})
     return {"status": "ok", "source": source, "event": event}
 
-# ─── Routes: Memory Search & Auto-Skill Generator (v0.3.0) ─────────
+# ─── Routes: Memory Search & Auto-Skill Generator (v3.0) ─────────
 
 @app.get("/api/memory/search")
 def memory_search(q: str = Query(""), limit: int = Query(20, le=100)):
@@ -637,7 +637,7 @@ def list_entities(entity_type: str = "", limit: int = Query(50, le=200)):
 
 @app.get("/api/memory/graph")
 def memory_graph():
-    """Knowledge graph of memory files, skills, and extracted entities (v0.4.0)."""
+    """Knowledge graph of memory files, skills, and extracted entities (v4.0)."""
     try:
         from brain.memory_search import build_graph
         graph = build_graph()
@@ -683,7 +683,7 @@ Generate this skill by running it with appropriate input.
     append_audit({"action": "skill_generated", "name": name, "description": description})
     return {"status": "created", "name": name, "skill": skill_md}
 
-# ─── Routes: Error Tracking (v0.3.0) ───────────────────────────────
+# ─── Routes: Error Tracking (v3.0) ───────────────────────────────
 
 ERROR_LOG_FILE = BASE_DIR / "data" / "error-log.json"
 
@@ -728,7 +728,7 @@ def report_error(data: dict):
     )
     return {"status": "reported"}
 
-# ─── Circuit Breaker (v0.3.0) ──────────────────────────────────────
+# ─── Circuit Breaker (v3.0) ──────────────────────────────────────
 
 CIRCUIT_BREAKER_FILE = BASE_DIR / "data" / "circuit-breaker.json"
 
@@ -951,7 +951,7 @@ def chat(req: ChatRequest):
 
 @app.get("/api/chat/history")
 def get_chat_history(q: str = Query(""), agent: str = Query(""), limit: int = Query(200, le=1000)):
-    """Chat history with optional search/filter (v0.4.0)."""
+    """Chat history with optional search/filter (v4.0)."""
     history = load_chat_history()
     messages = history.get("messages", [])
     if q:
@@ -963,7 +963,7 @@ def get_chat_history(q: str = Query(""), agent: str = Query(""), limit: int = Qu
         messages = messages[-limit:]
     return {"messages": messages, "total": len(messages), "query": q, "agent": agent}
 
-# ─── Routes: Chat File Attachments (v0.4.0) ─────────────────────────
+# ─── Routes: Chat File Attachments (v4.0) ─────────────────────────
 
 UPLOAD_DIR = BASE_DIR / "data" / "uploads"
 UPLOAD_MAX_BYTES = 2 * 1024 * 1024  # 2 MB
@@ -992,7 +992,7 @@ async def chat_upload(
     message: str = Form(""),
     file: UploadFile = File(...),
 ):
-    """Chat with an optional file attachment (multipart/form-data, v0.4.0)."""
+    """Chat with an optional file attachment (multipart/form-data, v4.0)."""
     agent = agent.lower().strip()
     if agent not in ["opencode", "hermes", "agy"]:
         raise HTTPException(400, "Agent must be one of: opencode, hermes, agy")
@@ -1045,7 +1045,7 @@ async def chat_upload(
     return {"status": "ok", "response": agent_msg, "file": filename, "saved_as": safe_name}
 
 # ═══════════════════════════════════════════════════════════════════
-# v0.2.0 — New Feature Endpoints
+# v2.0 — New Feature Endpoints
 # ═══════════════════════════════════════════════════════════════════
 
 # ─── Models ─────────────────────────────────────────────────────
@@ -1640,7 +1640,7 @@ def get_session_replay(session_id: str):
     except Exception as e:
         return {"session_id": session_id, "messages": [], "error": str(e)}
 
-# ─── Routes: Code Diff Viewer (v0.4.0) ─────────────────────────────
+# ─── Routes: Code Diff Viewer (v4.0) ─────────────────────────────
 
 DIFF_ALLOWED_PREFIXES = (
     "brain/", "skills/", "server.py", "scheduler/", "dashboard/",
@@ -1649,7 +1649,7 @@ DIFF_ALLOWED_PREFIXES = (
 
 @app.get("/api/diff")
 def get_diff(file: str = Query(""), ref: str = Query("HEAD")):
-    """Unified git diff for a file in the repo (v0.4.0)."""
+    """Unified git diff for a file in the repo (v4.0)."""
     try:
         if not file:
             raise HTTPException(400, "Query parameter 'file' is required")
@@ -1718,7 +1718,7 @@ def favicon():
 def favicon_svg():
     return Response(content=FAVICON_SVG, media_type="image/svg+xml")
 
-# ─── PWA Support (v0.3.0) ──────────────────────────────────────────
+# ─── PWA Support (v3.0) ──────────────────────────────────────────
 
 MANIFEST_JSON = {
     "name": "Agentic OS",
