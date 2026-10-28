@@ -1,0 +1,37 @@
+{
+  "enabled": true,
+  "allow_cross_agent": true,
+  "auto_consult": true,
+  "shared_context": true,
+  "adaptation": {
+    "enabled": true,
+    "learn_from_interactions": true,
+    "update_brain": true
+  },
+  "peers": [
+    {
+      "id": "opencode",
+      "name": "opencode",
+      "type": "builtin",
+      "enabled": true
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes",
+      "type": "builtin",
+      "enabled": true
+    },
+    {
+      "id": "agy",
+      "name": "agy",
+      "type": "builtin",
+      "enabled": true
+    },
+    {
+      "id": "custom-test-agent",
+      "name": "Custom Test Agent",
+      "type": "openai_compatible",
+      "enabled": true
+    }
+  ]
+}

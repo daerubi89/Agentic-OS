@@ -24,6 +24,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+try:
+    import httpx
+except Exception:
+    httpx = None
+
 _scheduler_instance = None
 
 @asynccontextmanager
@@ -81,6 +86,55 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(NoCacheMiddleware)
 
 BASE_DIR = Path(__file__).parent.resolve()
+
+# ─── Custom Agents & AI Gateway ──────────────────────────────────
+CUSTOM_AGENTS_FILE = BASE_DIR / "data" / "custom-agents.json"
+GATEWAY_FILE = BASE_DIR / "data" / "gateway.json"
+GW_PROVIDERS_FILE = BASE_DIR / "data" / "gateway-providers.json"
+GW_MODELS_FILE = BASE_DIR / "data" / "gateway-models.json"
+GW_KEYS_FILE = BASE_DIR / "data" / "gateway-keys.json"
+GW_LOGS_FILE = BASE_DIR / "data" / "gateway-logs.json"
+
+
+def load_json(path: Path, default):
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(default, indent=2), encoding="utf-8")
+        return default
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+
+
+def save_json(path: Path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return True
+
+
+def get_all_agents() -> list:
+    built_in = [
+        {"id": "opencode", "name": "opencode", "type": "builtin", "enabled": True, "icon": "💻"},
+        {"id": "hermes", "name": "Hermes", "type": "builtin", "enabled": True, "icon": "🧠"},
+        {"id": "agy", "name": "agy", "type": "builtin", "enabled": True, "icon": "🔍"},
+    ]
+    custom_store = load_json(CUSTOM_AGENTS_FILE, {"agents": []})
+    custom = custom_store.get("agents", []) or []
+    for c in custom:
+        c.setdefault("type", "custom")
+        c.setdefault("enabled", True)
+        c.setdefault("icon", "🤖")
+    return built_in + [c for c in custom if c.get("enabled", True)]
+
+
+def mask_key(k: str):
+    if not k:
+        return ""
+    if len(k) <= 8:
+        return "****"
+    return k[:4] + "****" + k[-4:]
+
 
 # ─── Models ───────────────────────────────────────────────────────
 
@@ -200,26 +254,53 @@ app.add_middleware(SecurityHeadersMiddleware)
 def check_agent(name: str) -> dict:
     """Instant filesystem-based check. No subprocess needed."""
     try:
-        if name == "opencode":
+        name_l = (name or "").lower().strip()
+        if name_l == "opencode":
             exists = shutil.which("opencode") is not None
             status = "online" if exists else "offline"
-        elif name == "hermes":
+            return {"name": "opencode", "status": status, "type": "builtin"}
+        elif name_l == "hermes":
             exists = shutil.which("hermes") is not None
             status = "online" if exists else "offline"
-        elif name == "agy":
+            return {"name": "hermes", "status": status, "type": "builtin"}
+        elif name_l == "agy":
             exists = shutil.which("agy") is not None
             status = "online" if exists else "offline"
-        else:
-            status = "offline"
+            return {"name": "agy", "status": status, "type": "builtin"}
+        # custom
+        data = load_json(CUSTOM_AGENTS_FILE, {"agents": []})
+        for c in data.get("agents", []):
+            cid = (c.get("id") or "").lower()
+            cname = (c.get("name") or "").lower()
+            if (cid == name_l or cname == name_l):
+                if not c.get("enabled", True):
+                    return {"name": c.get("id"), "status": "offline", "type": "custom", "agentType": c.get("type")}
+                t = c.get("type")
+                if t == "cli":
+                    cmd = c.get("command") or ""
+                    if cmd:
+                        first = cmd.split()[0]
+                        if shutil.which(first) or Path(cmd).exists():
+                            return {"name": c.get("id"), "status": "online", "type": "custom", "agentType": t}
+                    return {"name": c.get("id"), "status": "offline", "type": "custom", "agentType": t}
+                if t in ("http", "openai_compatible", "script"):
+                    return {"name": c.get("id"), "status": "online", "type": "custom", "agentType": t}
+                return {"name": c.get("id"), "status": "online", "type": "custom", "agentType": t}
+        return {"name": name, "status": "offline", "type": "unknown"}
     except Exception:
-        status = "offline"
-    return {"name": name, "status": status}
+        return {"name": name, "status": "offline", "type": "unknown"}
 
 # ─── Routes: Status ───────────────────────────────────────────────
 
 @app.get("/api/status")
 def get_status():
-    agents = [check_agent(a) for a in ["opencode", "hermes", "agy"]]
+    agents = []
+    for a in get_all_agents():
+        info = check_agent(a["id"])
+        info["displayName"] = a.get("name") or info.get("name") or a["id"]
+        info["icon"] = a.get("icon") or "🤖"
+        info["id"] = a["id"]
+        agents.append(info)
     skills_dir = BASE_DIR / "skills"
     skills = [d.name for d in skills_dir.iterdir()
               if d.is_dir() and not d.name.startswith("_")] if skills_dir.exists() else []
@@ -228,6 +309,7 @@ def get_status():
         "agents": agents,
         "skills_count": len(skills),
         "uptime": time.time(),
+        "total_agents": len(agents),
     }
 
 # ─── Routes: Brain ────────────────────────────────────────────────
@@ -852,61 +934,266 @@ def clean_hermes_output(raw: str) -> str:
 
 def execute_agent(agent: str, message: str) -> str:
     try:
-        if agent == "opencode":
-            try:
-                code, out, err = run_cli(["opencode", "run", "--format", "json", message], timeout=30)
-            except subprocess.TimeoutExpired:
-                return f"⏱ Agent 'opencode' timed out.\n\nOpenCode's model is taking too long. Try running `opencode run \"{message[:60]}\"` directly in your terminal.\n\n**Message:** {message[:100]}"
-            if code == 0:
-                response_text = ""
-                for line in (out or "").split('\n'):
-                    line = line.strip()
-                    if not line:
+        agent_l = (agent or "").lower().strip()
+        if agent_l == "opencode":
+            candidates = [
+                ["opencode", "run", "--format", "json", message],
+                ["opencode", "run", message],
+                ["opencode", message],
+                ["/home/kesra/.opencode/bin/opencode", "run", message],
+                ["opencode.cmd", "run", message],
+            ]
+            last_err = ""
+            for cmd in candidates:
+                try:
+                    code, out, err = run_cli(cmd, timeout=90)
+                    if code == 0 or out or err:
+                        if code == 0:
+                            response_text = ""
+                            for line in (out or "").split('\n'):
+                                line = line.strip()
+                                if not line:
+                                    continue
+                                try:
+                                    event = json.loads(line)
+                                    if event.get("type") == "text":
+                                        text = event.get("part", {}).get("text", "") or event.get("text", "")
+                                        if text:
+                                            response_text += text + "\n"
+                                except Exception:
+                                    if not response_text and line and not line.startswith('{'):
+                                        response_text += line + "\n"
+                                    continue
+                            if response_text.strip():
+                                return response_text.strip()
+                            if (out or "").strip():
+                                return (out or "").strip()
+                            return f"**opencode**\n\nProcessed your message.\n\n**Message:** {message[:100]}"
+                        last_err = ((err or "") + "\n" + (out or "")).strip()
+                        if last_err and "command not found" not in last_err.lower():
+                            return last_err
                         continue
-                    try:
-                        event = json.loads(line)
-                        if event.get("type") == "text":
-                            text = event.get("part", {}).get("text", "")
-                            if text:
-                                response_text += text + "\n"
-                    except (json.JSONDecodeError, KeyError):
+                except subprocess.TimeoutExpired:
+                    return f"⏱ Agent 'opencode' timed out.\n\nTry running `opencode run \"{message[:80]}\"` directly in your terminal.\n\n**Message:** {message[:100]}"
+                except Exception as e:
+                    last_err = str(e)
+                    continue
+            return last_err or "opencode not available or returned no output. Ensure opencode is installed and in PATH."
+
+        elif agent_l == "hermes":
+            candidates = [
+                ["hermes", "chat", "-q", message],
+                ["hermes", "chat", message],
+                ["hermes", message],
+                ["hermes.exe", "chat", "-q", message],
+                ["hermes.exe", "chat", message],
+                ["/mnt/c/Users/kesra/AppData/Local/hermes/bin/hermes.exe", "chat", "-q", message],
+                ["/mnt/c/Users/kesra/AppData/Local/hermes/bin/hermes.exe", "chat", message],
+            ]
+            last_err = ""
+            for cmd in candidates:
+                try:
+                    code, out, err = run_cli(cmd, timeout=300)
+                    if code == 0 or out or err:
+                        if code == 0:
+                            cleaned = clean_hermes_output(out or "")
+                            if cleaned:
+                                return cleaned
+                            if (out or "").strip():
+                                return (out or "").strip()
+                            return f"**Hermes**\n\nReceived your message but the model returned an empty response. Try rephrasing your query.\n\n**Message:** {message}"
+                        last_err = ((err or "") + "\n" + (out or "")).strip()
+                        if last_err and "not found" not in last_err.lower():
+                            if "invalid choice" in last_err.lower() or "usage:" in last_err.lower():
+                                return f"**Hermes needs setup**\n\nRun `hermes setup` or check your config.\n\n**Details:** {last_err[:300]}"
+                            return last_err
                         continue
-                if response_text:
-                    return response_text.strip()
-                return f"**opencode**\n\nProcessed your message.\n\n**Message:** {message[:100]}"
-            err_msg = (err or "").strip()
-            return err_msg or f"opencode returned exit code {code}"
+                except subprocess.TimeoutExpired:
+                    return f"⏱ Hermes timed out.\n\nThe model took too long to respond. Try a shorter query.\n\n**Message:** {message[:100]}"
+                except Exception as e:
+                    last_err = str(e)
+                    continue
+            return last_err or "Hermes CLI not found. If installed on Windows, ensure it's in PATH or use WSL path."
 
-        elif agent == "hermes":
-            try:
-                code, out, err = run_cli(["hermes", "chat", "-q", message], timeout=180)
-            except subprocess.TimeoutExpired:
-                return f"⏱ Hermes timed out.\n\nThe model took too long to respond. Try a shorter query or check your OpenRouter rate limits.\n\n**Message:** {message[:100]}"
-            if code == 0:
-                cleaned = clean_hermes_output(out or "")
-                if cleaned:
-                    return cleaned
-                # Empty response from model - return useful fallback
-                return f"**Hermes**\n\nReceived your message but the model returned an empty response. Try rephrasing your query.\n\n**Message:** {message}"
-            err_msg = (err or "").strip()
-            if "invalid choice" in err_msg or "usage:" in err_msg:
-                return f"**Hermes needs setup**\n\nRun `hermes setup` or check your config.\n\n**Details:** {err_msg[:200]}"
-            return err_msg or f"hermes returned exit code {code}"
+        elif agent_l == "agy":
+            candidates = [
+                ["agy", "--print", message],
+                ["agy", "chat", message],
+                ["agy", message],
+                ["agy.exe", "--print", message],
+                ["agy.exe", "chat", message],
+            ]
+            last_err = ""
+            for cmd in candidates:
+                try:
+                    code, out, err = run_cli(cmd, timeout=180)
+                    if code == 0 or out or err:
+                        if code == 0:
+                            if (out or "").strip():
+                                return (out or "").strip()
+                            return f"**agy**\n\nProcessed your query."
+                        last_err = ((err or "") + "\n" + (out or "")).strip()
+                        if last_err:
+                            if "auth" in last_err.lower() or "login" in last_err.lower() or "api key" in last_err.lower():
+                                return f"**agy needs auth**\n\nRun `agy login` to authenticate.\n\n**Details:** {last_err[:300]}"
+                            if "not found" not in last_err.lower():
+                                return last_err
+                        continue
+                except subprocess.TimeoutExpired:
+                    return f"**agy timed out.**\n\nTry running `agy --print \"{message[:60]}\"` directly."
+                except Exception as e:
+                    last_err = str(e)
+                    continue
+            return last_err or "agy CLI not found. Install agy/Antigravity CLI or add to PATH."
 
-        elif agent == "agy":
-            try:
-                code, out, err = run_cli(["agy", "--print", message], timeout=60)
-            except subprocess.TimeoutExpired:
-                return f"**agy timed out.**\n\nTry running `agy --print \"{message[:60]}\"` directly."
-            combined = ((err or "") + " " + (out or "")).strip()
-            if code == 0:
-                return (out or "").strip() or f"**agy**\n\nProcessed your query."
-            if "auth" in combined.lower() or "login" in combined.lower() or "api key" in combined.lower():
-                return f"**agy needs auth**\n\nRun `agy login` to authenticate.\n\n**Details:** {combined[:200]}"
-            return combined or f"agy returned exit code {code}"
+        elif agent_l in ["codex", "codex-cli"]:
+            candidates = [
+                ["codex", "exec", message],
+                ["codex", "--quiet", message],
+                ["codex", message],
+                ["/home/kesra/.local/bin/codex", "exec", message],
+            ]
+            last_err = ""
+            for cmd in candidates:
+                try:
+                    code, out, err = run_cli(cmd, timeout=300)
+                    if code == 0 or out or err:
+                        if code == 0:
+                            if (out or "").strip():
+                                return (out or "").strip()
+                            return f"**codex**\n\nProcessed your query."
+                        last_err = ((err or "") + "\n" + (out or "")).strip()
+                        if last_err and "not found" not in last_err.lower():
+                            return last_err
+                        continue
+                except subprocess.TimeoutExpired:
+                    return f"**codex timed out.**\n\nTry running it directly in your terminal."
+                except Exception as e:
+                    last_err = str(e)
+                    continue
+            return last_err or "codex CLI not found."
 
-        else:
-            return f"Unknown agent: {agent}"
+        elif agent_l in ["cursor", "cursor-agent"]:
+            candidates = [
+                ["cursor-agent", "chat", message],
+                ["cursor-agent", message],
+                ["cursor", "chat", message],
+                ["cursor", message],
+                ["/home/kesra/.local/bin/cursor-agent", "chat", message],
+                ["/mnt/c/Users/kesra/AppData/Local/cursor-agent/cursor-agent.exe", "chat", message],
+            ]
+            last_err = ""
+            for cmd in candidates:
+                try:
+                    code, out, err = run_cli(cmd, timeout=300)
+                    if code == 0 or out or err:
+                        if code == 0:
+                            if (out or "").strip():
+                                return (out or "").strip()
+                            return f"**cursor-agent**\n\nProcessed your query."
+                        last_err = ((err or "") + "\n" + (out or "")).strip()
+                        if last_err and "not found" not in last_err.lower():
+                            return last_err
+                        continue
+                except subprocess.TimeoutExpired:
+                    return f"**cursor-agent timed out.**\n\nTry running it directly in your terminal."
+                except Exception as e:
+                    last_err = str(e)
+                    continue
+            return last_err or "cursor/cursor-agent CLI not found."
+
+        # custom agents
+        data = load_json(CUSTOM_AGENTS_FILE, {"agents": []})
+        for c in data.get("agents", []):
+            cid = (c.get("id") or "").lower()
+            cname = (c.get("name") or "").lower()
+            if cid == agent_l or cname == agent_l:
+                if not c.get("enabled", True):
+                    return f"⚠ Custom agent '{c.get('name') or c.get('id')}' is disabled."
+                t = c.get("type")
+                timeout = int(c.get("timeout") or 120)
+                try:
+                    if t == "cli" or t == "script":
+                        cmd = c.get("command") or ""
+                        args = c.get("args") or []
+                        args_resolved = []
+                        for a in args:
+                            args_resolved.append(str(a).replace("{message}", message).replace("{prompt}", message).replace("{sessionId}", str(uuid.uuid4())[:8]))
+                        full = [cmd] + args_resolved if cmd else args_resolved
+                        code, out, err = run_cli(full, timeout=timeout)
+                        if code == 0:
+                            return (out or "").strip() or "(no output)"
+                        return (err or out or f"exit {code}").strip()
+                    if t == "http":
+                        if not httpx:
+                            return "httpx not installed"
+                        url = c.get("endpoint") or ""
+                        method = (c.get("method") or "POST").upper()
+                        headers = dict(c.get("headers") or {})
+                        if method == "GET":
+                            r = httpx.request(method, url, headers=headers, params={"message": message, "prompt": message}, timeout=timeout)
+                        else:
+                            body_template = c.get("bodyTemplate") or {"message": "{message}"}
+                            body_str = json.dumps(body_template)
+                            body_str = body_str.replace('"{message}"', json.dumps(message))
+                            body_str = body_str.replace("{message}", message)
+                            body = json.loads(body_str)
+                            r = httpx.request(method, url, headers=headers, json=body, timeout=timeout)
+                        r.raise_for_status()
+                        try:
+                            j = r.json()
+                            path = c.get("responsePath") or ""
+                            if path:
+                                cur = j
+                                for p in path.split("."):
+                                    if isinstance(cur, dict) and p in cur:
+                                        cur = cur[p]
+                                    elif isinstance(cur, list) and p.isdigit():
+                                        cur = cur[int(p)]
+                                    else:
+                                        cur = None
+                                        break
+                                if cur is not None:
+                                    if isinstance(cur, str):
+                                        return cur
+                                    return str(cur)
+                            # try common fields
+                            for k in ["response", "content", "text", "output", "message", "answer"]:
+                                if isinstance(j, dict) and k in j and isinstance(j[k], str):
+                                    return j[k]
+                            return json.dumps(j, indent=2)
+                        except Exception:
+                            return r.text
+                    if t == "openai_compatible":
+                        if not httpx:
+                            return "httpx not installed"
+                        base = (c.get("baseUrl") or "").rstrip("/")
+                        url = base + "/chat/completions"
+                        headers = {"Content-Type": "application/json", "User-Agent": "Agentic-OS/4.0"}
+                        api_key = c.get("apiKey") or ""
+                        if api_key:
+                            headers["Authorization"] = f"Bearer {api_key}"
+                        headers.update(dict(c.get("headers") or {}))
+                        payload = {"model": c.get("model") or "", "messages": [{"role": "user", "content": message}], "temperature": 0.7}
+                        r = httpx.post(url, headers=headers, json=payload, timeout=timeout)
+                        r.raise_for_status()
+                        j = r.json()
+                        try:
+                            return j["choices"][0]["message"]["content"]
+                        except Exception:
+                            try:
+                                return j["choices"][0]["text"]
+                            except Exception:
+                                return json.dumps(j)
+                    return f"Unsupported custom agent type: {t}"
+                except subprocess.TimeoutExpired:
+                    return f"⏱ Custom agent '{c.get('name') or c.get('id')}' timed out."
+                except httpx.HTTPStatusError as e:
+                    return f"⚠ Custom agent {c.get('name') or c.get('id')} error: {e.response.status_code} {e.response.text[:200]}"
+                except Exception as e:
+                    return f"⚠ Error custom agent {c.get('name') or c.get('id')}: {e}"
+
+        return f"Unknown agent: {agent}"
     except subprocess.TimeoutExpired:
         return f"⏱ Agent '{agent}' timed out.\n\nRun `{agent} --help` in your terminal for CLI usage.\n\n**Message:** {message[:100]}"
     except FileNotFoundError:
@@ -916,9 +1203,15 @@ def execute_agent(agent: str, message: str) -> str:
 
 @app.post("/api/chat")
 def chat(req: ChatRequest):
-    agent = req.agent.lower().strip()
-    if agent not in ["opencode", "hermes", "agy"]:
-        raise HTTPException(400, "Agent must be one of: opencode, hermes, agy")
+    agent_req = (req.agent or "").strip()
+    agent_l = agent_req.lower()
+    allowed = {"opencode", "hermes", "agy"}
+    for a in get_all_agents():
+        allowed.add((a.get("id") or "").lower())
+        allowed.add((a.get("name") or "").lower())
+    if agent_l not in allowed and agent_req:
+        # be lenient
+        pass
     message = (req.message or "").strip()
     if not message:
         raise HTTPException(400, "Message cannot be empty")
@@ -928,24 +1221,24 @@ def chat(req: ChatRequest):
     user_msg = {
         "id": str(uuid.uuid4())[:8],
         "role": "user",
-        "agent": agent,
+        "agent": agent_req,
         "content": message,
         "timestamp": get_timestamp(),
     }
     save_chat_message(user_msg)
 
-    response_text = execute_agent(agent, message)
+    response_text = execute_agent(agent_req, message)
 
     agent_msg = {
         "id": str(uuid.uuid4())[:8],
         "role": "assistant",
-        "agent": agent,
+        "agent": agent_req,
         "content": response_text,
         "timestamp": get_timestamp(),
     }
     save_chat_message(agent_msg)
 
-    append_audit({"action": "chat_message", "agent": agent, "msg_preview": message[:50]})
+    append_audit({"action": "chat_message", "agent": agent_req, "msg_preview": message[:50]})
 
     return {"status": "ok", "response": agent_msg}
 
@@ -993,9 +1286,14 @@ async def chat_upload(
     file: UploadFile = File(...),
 ):
     """Chat with an optional file attachment (multipart/form-data, v4.0)."""
-    agent = agent.lower().strip()
-    if agent not in ["opencode", "hermes", "agy"]:
-        raise HTTPException(400, "Agent must be one of: opencode, hermes, agy")
+    agent_req = (agent or "").strip()
+    agent_l = agent_req.lower()
+    allowed = {"opencode", "hermes", "agy"}
+    for a in get_all_agents():
+        allowed.add((a.get("id") or "").lower())
+        allowed.add((a.get("name") or "").lower())
+    if agent_l not in allowed:
+        raise HTTPException(400, "Invalid agent")
 
     raw = await file.read(UPLOAD_MAX_BYTES + 1)
     if len(raw) > UPLOAD_MAX_BYTES:
@@ -1027,21 +1325,21 @@ async def chat_upload(
     user_msg = {
         "id": str(uuid.uuid4())[:8],
         "role": "user",
-        "agent": agent,
+        "agent": agent_req,
         "content": full_message,
         "timestamp": get_timestamp(),
     }
     save_chat_message(user_msg)
-    response_text = execute_agent(agent, full_message)
+    response_text = execute_agent(agent_req, full_message)
     agent_msg = {
         "id": str(uuid.uuid4())[:8],
         "role": "assistant",
-        "agent": agent,
+        "agent": agent_req,
         "content": response_text,
         "timestamp": get_timestamp(),
     }
     save_chat_message(agent_msg)
-    append_audit({"action": "chat_message", "agent": agent, "msg_preview": (message or filename)[:50]})
+    append_audit({"action": "chat_message", "agent": agent_req, "msg_preview": (message or filename)[:50]})
     return {"status": "ok", "response": agent_msg, "file": filename, "saved_as": safe_name}
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1456,10 +1754,15 @@ def search_journal(q: str = Query("")):
 def get_agent_health():
     try:
         agents = []
-        for name in ["opencode", "hermes", "agy"]:
-            info = check_agent(name)
-            info["uptime"] = 0
-            info["success_rate"] = 100
+        for a in get_all_agents():
+            info = check_agent(a["id"])
+            info["id"] = a["id"]
+            info["displayName"] = a.get("name") or info.get("displayName") or a["id"]
+            info["icon"] = a.get("icon") or info.get("icon") or "🤖"
+            info["type"] = info.get("type") or a.get("type")
+            info["agentType"] = info.get("agentType") or a.get("type")
+            info["uptime"] = info.get("uptime", 0)
+            info["success_rate"] = info.get("success_rate", 100)
             info["last_seen"] = get_timestamp()
             agents.append(info)
         return {"agents": agents, "updated": get_timestamp()}
@@ -1640,6 +1943,367 @@ def get_session_replay(session_id: str):
     except Exception as e:
         return {"session_id": session_id, "messages": [], "error": str(e)}
 
+
+# ─── Routes: Messaging Bridges ───────────────────────────────────
+try:
+    from bridges.whatsapp_webhook import router as whatsapp_router
+    app.include_router(whatsapp_router)
+except Exception:
+    pass
+
+
+@app.get("/api/messaging/config")
+def get_messaging_config():
+    cfg_path = BASE_DIR / "data" / "messaging.json"
+    if cfg_path.exists():
+        try:
+            data = json.loads(cfg_path.read_text())
+            # mask tokens
+            if data.get("telegram", {}).get("token"):
+                t = data["telegram"]["token"]
+                data["telegram"]["token_masked"] = t[:4] + "****" + t[-4:] if len(t) > 8 else "****"
+            if data.get("whatsapp", {}).get("auth_token"):
+                t = data["whatsapp"]["auth_token"]
+                data["whatsapp"]["auth_token_masked"] = t[:4] + "****" + t[-4:] if len(t) > 8 else "****"
+            return data
+        except Exception:
+            pass
+    return {"telegram": {"enabled": False}, "whatsapp": {"enabled": False}}
+
+
+class MessagingConfigUpdate(BaseModel):
+    telegram: Optional[dict] = None
+    whatsapp: Optional[dict] = None
+
+
+@app.put("/api/messaging/config")
+def put_messaging_config(data: MessagingConfigUpdate):
+    cfg_path = BASE_DIR / "data" / "messaging.json"
+    existing = {}
+    if cfg_path.exists():
+        try:
+            existing = json.loads(cfg_path.read_text())
+        except Exception:
+            existing = {}
+    if data.telegram is not None:
+        tg = existing.get("telegram", {})
+        tg.update(data.telegram)
+        existing["telegram"] = tg
+    if data.whatsapp is not None:
+        wa = existing.get("whatsapp", {})
+        wa.update(data.whatsapp)
+        existing["whatsapp"] = wa
+    cfg_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+    append_audit({"action": "messaging_config_updated"})
+    return {"status": "ok"}
+
+
+# ─── Routes: Custom Agents & AI Gateway ──────────────────────────
+
+
+class CustomAgentCreate(BaseModel):
+    id: Optional[str] = None
+    name: str
+    enabled: bool = True
+    type: str  # cli|http|openai_compatible|script
+    command: Optional[str] = None
+    args: Optional[list] = []
+    cwd: Optional[str] = None
+    env: Optional[dict] = {}
+    endpoint: Optional[str] = None
+    method: Optional[str] = "POST"
+    headers: Optional[dict] = {}
+    bodyTemplate: Optional[dict] = {}
+    responsePath: Optional[str] = None
+    baseUrl: Optional[str] = None
+    apiKey: Optional[str] = None
+    model: Optional[str] = None
+    timeout: Optional[int] = 120
+    description: Optional[str] = ""
+    routing: Optional[list] = []
+    icon: Optional[str] = "🤖"
+
+
+@app.get("/api/agents/custom")
+def list_custom_agents():
+    return load_json(CUSTOM_AGENTS_FILE, {"agents": []})
+
+
+@app.post("/api/agents/custom")
+def create_custom_agent(data: CustomAgentCreate):
+    store = load_json(CUSTOM_AGENTS_FILE, {"agents": []})
+    agents = store.get("agents", []) or []
+    base_id = (data.id or data.name or "").lower()
+    aid = re.sub(r'[^a-z0-9-]+', '-', base_id).strip('-') or str(uuid.uuid4())[:8]
+    if any((a.get("id") or "").lower() == aid.lower() for a in agents):
+        aid = f"{aid}-{str(uuid.uuid4())[:4]}"
+    agent = data.model_dump()
+    agent["id"] = aid
+    agent.setdefault("icon", "🤖")
+    agent.setdefault("enabled", True)
+    agents.append(agent)
+    store["agents"] = agents
+    save_json(CUSTOM_AGENTS_FILE, store)
+    append_audit({"action": "custom_agent_created", "id": aid})
+    return agent
+
+
+@app.put("/api/agents/custom/{agent_id}")
+def update_custom_agent(agent_id: str, data: CustomAgentCreate):
+    store = load_json(CUSTOM_AGENTS_FILE, {"agents": []})
+    agents = store.get("agents", []) or []
+    for i, a in enumerate(agents):
+        if (a.get("id") or "").lower() == agent_id.lower():
+            upd = data.model_dump()
+            upd["id"] = a.get("id")
+            agents[i] = upd
+            store["agents"] = agents
+            save_json(CUSTOM_AGENTS_FILE, store)
+            append_audit({"action": "custom_agent_updated", "id": upd["id"]})
+            return upd
+    raise HTTPException(404, "Not found")
+
+
+@app.delete("/api/agents/custom/{agent_id}")
+def delete_custom_agent(agent_id: str):
+    store = load_json(CUSTOM_AGENTS_FILE, {"agents": []})
+    agents = [a for a in (store.get("agents", []) or []) if (a.get("id") or "").lower() != agent_id.lower()]
+    store["agents"] = agents
+    save_json(CUSTOM_AGENTS_FILE, store)
+    append_audit({"action": "custom_agent_deleted", "id": agent_id})
+    return {"status": "deleted"}
+
+
+@app.get("/api/agents/all")
+def list_all_agents():
+    return {"agents": get_all_agents()}
+
+
+@app.get("/api/gateway/config")
+def gateway_config():
+    cfg = load_json(GATEWAY_FILE, {"enabled": True, "exposeOpenAICompat": True, "defaultProvider": "openrouter", "fallbackOrder": ["openrouter", "groq", "cerebras", "deepseek"], "rateLimit": {"enabled": False, "rpm": 60}, "logging": {"enabled": True, "redactKeys": True}})
+    keys = load_json(GW_KEYS_FILE, {"keys": {}})
+    mk = {k: mask_key(v) for k, v in (keys.get("keys") or {}).items()}
+    return {"config": cfg, "keysMasked": mk}
+
+
+class GatewayConfigUpdate(BaseModel):
+    config: dict = {}
+    keys: Optional[dict] = {}
+
+
+@app.put("/api/gateway/config")
+def gateway_config_put(data: GatewayConfigUpdate):
+    if data.config:
+        save_json(GATEWAY_FILE, data.config)
+    if data.keys is not None:
+        save_json(GW_KEYS_FILE, {"keys": data.keys})
+    append_audit({"action": "gateway_config_updated"})
+    return {"status": "ok"}
+
+
+@app.get("/api/gateway/providers")
+def gateway_providers():
+    stored = load_json(GW_PROVIDERS_FILE, {"providers": []})
+    if stored.get("providers"):
+        return stored
+    defaults = [
+        {"id": "openrouter", "name": "OpenRouter", "enabled": True, "baseUrl": "https://openrouter.ai/api/v1", "auth": "bearer", "modelsUrl": "https://openrouter.ai/api/v1/models", "supportsModelsList": True, "type": "openai"},
+        {"id": "9router", "name": "9Router", "enabled": False, "baseUrl": "http://localhost:3000/v1", "auth": "bearer", "modelsUrl": "http://localhost:3000/v1/models", "supportsModelsList": True, "type": "openai", "notes": "9Router local proxy"},
+        {"id": "omniroute", "name": "OmniRoute", "enabled": False, "baseUrl": "http://localhost:8081/v1", "auth": "bearer", "modelsUrl": "http://localhost:8081/v1/models", "supportsModelsList": True, "type": "openai"},
+        {"id": "groq", "name": "Groq", "enabled": True, "baseUrl": "https://api.groq.com/openai/v1", "auth": "bearer", "modelsUrl": "https://api.groq.com/openai/v1/models", "supportsModelsList": True, "type": "openai"},
+        {"id": "cerebras", "name": "Cerebras", "enabled": True, "baseUrl": "https://api.cerebras.ai/v1", "auth": "bearer", "modelsUrl": "https://api.cerebras.ai/v1/models", "supportsModelsList": True, "type": "openai"},
+        {"id": "deepseek", "name": "DeepSeek", "enabled": True, "baseUrl": "https://api.deepseek.com/v1", "auth": "bearer", "modelsUrl": "https://api.deepseek.com/v1/models", "supportsModelsList": True, "type": "openai"},
+        {"id": "openai", "name": "OpenAI", "enabled": False, "baseUrl": "https://api.openai.com/v1", "auth": "bearer", "modelsUrl": "https://api.openai.com/v1/models", "supportsModelsList": True, "type": "openai"},
+        {"id": "anthropic", "name": "Anthropic", "enabled": False, "baseUrl": "https://api.anthropic.com/v1", "auth": "x-api-key", "modelsUrl": "", "supportsModelsList": False, "type": "anthropic"},
+        {"id": "ollama", "name": "Ollama (Local)", "enabled": True, "baseUrl": "http://127.0.0.1:11434/v1", "auth": "none", "modelsUrl": "http://127.0.0.1:11434/v1/models", "supportsModelsList": True, "type": "openai"},
+        {"id": "lmstudio", "name": "LMStudio (Local)", "enabled": True, "baseUrl": "http://127.0.0.1:1234/v1", "auth": "none", "modelsUrl": "http://127.0.0.1:1234/v1/models", "supportsModelsList": True, "type": "openai"},
+        {"id": "vllm", "name": "vLLM (Local)", "enabled": False, "baseUrl": "http://127.0.0.1:8000/v1", "auth": "none", "modelsUrl": "http://127.0.0.1:8000/v1/models", "supportsModelsList": True, "type": "openai"},
+    ]
+    save_json(GW_PROVIDERS_FILE, {"providers": defaults})
+    return {"providers": defaults}
+
+
+@app.post("/api/gateway/providers")
+def gateway_providers_upsert(data: dict):
+    store = load_json(GW_PROVIDERS_FILE, {"providers": []})
+    provs = store.get("providers", []) or []
+    pid = data.get("id")
+    if not pid:
+        raise HTTPException(400, "id required")
+    for i, p in enumerate(provs):
+        if p.get("id") == pid:
+            provs[i] = data
+            break
+    else:
+        provs.append(data)
+    store["providers"] = provs
+    save_json(GW_PROVIDERS_FILE, store)
+    return data
+
+
+@app.delete("/api/gateway/providers/{pid}")
+def gateway_providers_del(pid: str):
+    store = load_json(GW_PROVIDERS_FILE, {"providers": []})
+    store["providers"] = [p for p in (store.get("providers", []) or []) if p.get("id") != pid]
+    save_json(GW_PROVIDERS_FILE, store)
+    return {"status": "deleted"}
+
+
+@app.post("/api/gateway/providers/{pid}/fetch-models")
+def gateway_fetch_models(pid: str):
+    if not httpx:
+        raise HTTPException(500, "httpx required")
+    provs = load_json(GW_PROVIDERS_FILE, {"providers": []}).get("providers", []) or []
+    p = next((x for x in provs if x.get("id") == pid), None)
+    if not p:
+        raise HTTPException(404, "provider not found")
+    keys = load_json(GW_KEYS_FILE, {"keys": {}}).get("keys", {}) or {}
+    headers = {"User-Agent": "Agentic-OS/4.0"}
+    auth = p.get("auth") or "bearer"
+    if auth == "bearer" and keys.get(pid):
+        headers["Authorization"] = f"Bearer {keys[pid]}"
+    if auth == "x-api-key" and keys.get(pid):
+        headers["x-api-key"] = keys[pid]
+    base = (p.get("baseUrl") or "").rstrip("/")
+    url = p.get("modelsUrl") or (base + "/models")
+    try:
+        r = httpx.get(url, headers=headers, timeout=30)
+        r.raise_for_status()
+        j = r.json()
+        models = []
+        data = j.get("data") or j.get("models") or j
+        if isinstance(data, dict):
+            # some providers return {models: [...]}
+            data = data.get("models") or data.get("data") or []
+        if isinstance(data, list):
+            for m in data:
+                mid = m.get("id") or m.get("name") or m.get("model") or m.get("model_name")
+                if not mid:
+                    continue
+                models.append({"id": str(mid), "name": m.get("name") or m.get("display_name") or str(mid), "provider": pid, "owned_by": m.get("owned_by") or p.get("name")})
+        store = load_json(GW_MODELS_FILE, {"models": []})
+        existing = {(x.get("provider"), x.get("id")) for x in (store.get("models", []) or [])}
+        added = 0
+        for mm in models:
+            if (mm["provider"], mm["id"]) not in existing:
+                store["models"].append(mm)
+                added += 1
+        save_json(GW_MODELS_FILE, store)
+        append_audit({"action": "gateway_models_fetched", "provider": pid, "count": added})
+        return {"status": "ok", "fetched": added, "total": len(store["models"]), "provider": pid}
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(e.response.status_code, f"Failed to fetch models: {e.response.text[:200]}")
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/gateway/providers/test")
+def gateway_provider_test(data: dict):
+    if not httpx:
+        raise HTTPException(500, "httpx required")
+    base = (data.get("baseUrl") or "").rstrip("/")
+    auth = data.get("auth") or "bearer"
+    key = data.get("apiKey") or ""
+    headers = {"User-Agent": "Agentic-OS/4.0"}
+    if auth == "bearer" and key:
+        headers["Authorization"] = f"Bearer {key}"
+    if auth == "x-api-key" and key:
+        headers["x-api-key"] = key
+    url = data.get("modelsUrl") or (base + "/models")
+    try:
+        r = httpx.get(url, headers=headers, timeout=15)
+        return {"ok": r.status_code < 400, "status": r.status_code, "url": url}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "url": url}
+
+
+@app.get("/api/gateway/models")
+def gateway_models(provider: str = ""):
+    store = load_json(GW_MODELS_FILE, {"models": []})
+    models = store.get("models", []) or []
+    if provider:
+        models = [m for m in models if m.get("provider") == provider]
+    return {"models": models}
+
+
+@app.post("/api/gateway/models/manual")
+def gateway_models_manual(data: dict):
+    store = load_json(GW_MODELS_FILE, {"models": []})
+    if not store.get("models"):
+        store["models"] = []
+    mid = (data.get("id") or "").strip()
+    if not mid:
+        raise HTTPException(400, "id required")
+    prov = (data.get("provider") or "custom").strip()
+    store["models"].append({"id": mid, "name": data.get("name") or mid, "provider": prov, "manual": True})
+    save_json(GW_MODELS_FILE, store)
+    return {"status": "ok"}
+
+
+@app.delete("/api/gateway/models")
+def gateway_models_clear(provider: str = ""):
+    store = load_json(GW_MODELS_FILE, {"models": []})
+    models = store.get("models", []) or []
+    if provider:
+        models = [m for m in models if m.get("provider") != provider]
+    else:
+        models = []
+    store["models"] = models
+    save_json(GW_MODELS_FILE, store)
+    return {"status": "cleared", "provider": provider or "all"}
+
+
+class OpenAIChatRequest(BaseModel):
+    model: str
+    messages: list
+    temperature: Optional[float] = 0.7
+    max_tokens: Optional[int] = None
+    stream: Optional[bool] = False
+
+
+@app.get("/v1/models")
+def openai_models():
+    store = load_json(GW_MODELS_FILE, {"models": []})
+    models = []
+    for m in (store.get("models", []) or []):
+        models.append({"id": f"{m.get('provider')}:{m.get('id')}", "object": "model", "owned_by": m.get("provider")})
+    return {"object": "list", "data": models}
+
+
+@app.post("/v1/chat/completions")
+def openai_chat_completions(req: OpenAIChatRequest):
+    if not httpx:
+        raise HTTPException(500, "httpx required")
+    model = req.model
+    if ":" in model:
+        provider, mid = model.split(":", 1)
+    else:
+        provider, mid = "openrouter", model
+    provs = load_json(GW_PROVIDERS_FILE, {"providers": []}).get("providers", []) or []
+    p = next((x for x in provs if x.get("id") == provider and x.get("enabled", True)), None)
+    if not p:
+        raise HTTPException(400, f"provider {provider} not enabled/configured")
+    keys = load_json(GW_KEYS_FILE, {"keys": {}}).get("keys", {}) or {}
+    headers = {"Content-Type": "application/json"}
+    if p.get("auth") == "bearer" and keys.get(provider):
+        headers["Authorization"] = f"Bearer {keys[provider]}"
+    if p.get("auth") == "x-api-key" and keys.get(provider):
+        headers["x-api-key"] = keys[provider]
+    base = (p.get("baseUrl") or "").rstrip("/")
+    url = base + "/chat/completions"
+    payload = {"model": mid, "messages": req.messages, "temperature": req.temperature}
+    if req.max_tokens:
+        payload["max_tokens"] = req.max_tokens
+    try:
+        r = httpx.post(url, headers=headers, json=payload, timeout=180)
+        r.raise_for_status()
+        return r.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(e.response.status_code, e.response.text)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
 # ─── Routes: Code Diff Viewer (v4.0) ─────────────────────────────
 
 DIFF_ALLOWED_PREFIXES = (
@@ -1762,3 +2426,85 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="127.0.0.1")
     args = parser.parse_args()
     uvicorn.run(app, host=args.host, port=args.port)
+
+
+# ─── Routes: Agent Mesh (inter-agent collaboration) ───────────────
+AGENT_NETWORK_FILE = BASE_DIR / "data" / "agent-network.json"
+
+
+@app.get("/api/agents/mesh")
+def get_agent_mesh():
+    data = load_json(AGENT_NETWORK_FILE, {"enabled": True, "allow_cross_agent": True, "auto_consult": True, "shared_context": True, "peers": []})
+    peers = []
+    for a in get_all_agents():
+        peers.append({"id": a["id"], "name": a.get("name"), "type": a.get("type"), "enabled": a.get("enabled", True)})
+    data["peers"] = peers
+    save_json(AGENT_NETWORK_FILE, data)
+    return data
+
+
+class AgentConsultRequest(BaseModel):
+    from_agent: str
+    to_agent: str
+    question: str
+    context: Optional[str] = ""
+
+
+@app.post("/api/agents/consult")
+def consult_agent(req: AgentConsultRequest):
+    prompt = f"[Agent Mesh Consultation]\nFrom: {req.from_agent}\nTo: {req.to_agent}\n\nQuestion: {req.question}\n\nContext: {req.context or '(none)'}\n\nPlease answer concisely and helpfully."
+    resp = execute_agent(req.to_agent, prompt)
+    append_audit({"action": "agent_consult", "from": req.from_agent, "to": req.to_agent})
+    # learn from interaction
+    try:
+        mem = BASE_DIR / "brain" / "agent-mesh.md"
+        entry = f"\n## {get_timestamp()}\n- {req.from_agent} -> {req.to_agent}: {req.question[:80]}\n- Answer: {resp[:120]}\n"
+        mem.write_text((mem.read_text() if mem.exists() else "# Agent Mesh Log\n") + entry, encoding="utf-8")
+    except Exception:
+        pass
+    return {"from": req.from_agent, "to": req.to_agent, "question": req.question, "answer": resp}
+
+
+@app.post("/api/agents/discuss")
+def discuss_agents(data: dict):
+    topic = data.get("topic", "")
+    agents = data.get("agents", [])
+    if not agents:
+        agents = [a["id"] for a in get_all_agents()][:3]
+    results = []
+    for a in agents:
+        prompt = f"[Agent Discussion] Topic: {topic}\nOther agents: {', '.join(agents)}\nGive your perspective/opinion and suggestion."
+        r = execute_agent(a, prompt)
+        results.append({"agent": a, "response": r})
+    append_audit({"action": "agent_discussion", "topic": topic[:60], "agents": agents})
+    try:
+        mem = BASE_DIR / "brain" / "agent-mesh.md"
+        entry = f"\n## Discussion {get_timestamp()}: {topic[:60]}\n"
+        for x in results:
+            entry += f"- {x['agent']}: {x['response'][:100]}\n"
+        mem.write_text((mem.read_text() if mem.exists() else "# Agent Mesh Log\n") + entry, encoding="utf-8")
+    except Exception:
+        pass
+    return {"topic": topic, "results": results}
+
+
+@app.post("/api/agents/auto-route-mesh")
+def auto_route_mesh(data: dict):
+    task = data.get("task", "")
+    agents = get_all_agents()
+    best = "opencode"
+    t = task.lower()
+    if any(k in t for k in ["research", "search", "analyze"]):
+        for a in agents:
+            if a["id"] == "agy" or "agy" in (a.get("name") or "").lower():
+                best = a["id"]; break
+    elif any(k in t for k in ["memory", "schedule", "remind"]):
+        for a in agents:
+            if a["id"] == "hermes" or "hermes" in (a.get("name") or "").lower():
+                best = a["id"]; break
+    else:
+        for a in agents:
+            if a["id"] == "opencode":
+                best = a["id"]; break
+    resp = execute_agent(best, task)
+    return {"routed_to": best, "response": resp}

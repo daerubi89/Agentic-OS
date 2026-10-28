@@ -1,0 +1,18 @@
+{
+  "telegram": {
+    "enabled": false,
+    "token": "",
+    "allowed_users": [],
+    "default_agent": "opencode"
+  },
+  "whatsapp": {
+    "enabled": false,
+    "provider": "twilio",
+    "account_sid": "",
+    "auth_token": "",
+    "from_number": "",
+    "webhook_url": "",
+    "allowed_numbers": [],
+    "default_agent": "opencode"
+  }
+}

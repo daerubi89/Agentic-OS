@@ -1,0 +1,97 @@
+{
+  "providers": [
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "enabled": true,
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "auth": "bearer",
+      "modelsUrl": "https://openrouter.ai/api/v1/models",
+      "supportsModelsList": true
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "enabled": true,
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "auth": "bearer",
+      "modelsUrl": "https://api.groq.com/openai/v1/models",
+      "supportsModelsList": true
+    },
+    {
+      "id": "cerebras",
+      "name": "Cerebras",
+      "enabled": true,
+      "baseUrl": "https://api.cerebras.ai/v1",
+      "auth": "bearer",
+      "modelsUrl": "https://api.cerebras.ai/v1/models",
+      "supportsModelsList": true
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "enabled": true,
+      "baseUrl": "https://api.deepseek.com/v1",
+      "auth": "bearer",
+      "modelsUrl": "https://api.deepseek.com/v1/models",
+      "supportsModelsList": true
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "enabled": false,
+      "baseUrl": "https://api.openai.com/v1",
+      "auth": "bearer",
+      "modelsUrl": "https://api.openai.com/v1/models",
+      "supportsModelsList": true
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "enabled": false,
+      "baseUrl": "https://api.anthropic.com/v1",
+      "auth": "x-api-key",
+      "modelsUrl": "",
+      "supportsModelsList": false
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama (Local)",
+      "enabled": true,
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "auth": "none",
+      "modelsUrl": "http://127.0.0.1:11434/v1/models",
+      "supportsModelsList": true
+    },
+    {
+      "id": "lmstudio",
+      "name": "LMStudio (Local)",
+      "enabled": true,
+      "baseUrl": "http://127.0.0.1:1234/v1",
+      "auth": "none",
+      "modelsUrl": "http://127.0.0.1:1234/v1/models",
+      "supportsModelsList": true
+    },
+    {
+      "id": "9router",
+      "name": "9Router",
+      "enabled": true,
+      "baseUrl": "http://localhost:3000/v1",
+      "auth": "bearer",
+      "modelsUrl": "http://localhost:3000/v1/models",
+      "type": "openai",
+      "supportsModelsList": true,
+      "notes": "9Router"
+    },
+    {
+      "id": "omniroute",
+      "name": "OmniRoute",
+      "enabled": false,
+      "baseUrl": "http://localhost:8081/v1",
+      "auth": "bearer",
+      "modelsUrl": "http://localhost:8081/v1/models",
+      "type": "openai",
+      "supportsModelsList": true
+    }
+  ]
+}

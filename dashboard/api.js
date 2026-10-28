@@ -125,4 +125,21 @@ const api = {
   getMemoryGraph: () => api.get('/api/memory/graph'),
   // v4.0: Code Diff Viewer
   getDiff: (file, ref = 'HEAD') => api.get(`/api/diff?file=${encodeURIComponent(file)}&ref=${encodeURIComponent(ref)}`),
+  // Custom Agents
+  listCustomAgents: () => api.get('/api/agents/custom'),
+  getAllAgents: () => api.get('/api/agents/all'),
+  createCustomAgent: (data) => api.post('/api/agents/custom', data),
+  updateCustomAgent: (id, data) => api.put(`/api/agents/custom/${encodeURIComponent(id)}`, data),
+  deleteCustomAgent: (id) => api.del(`/api/agents/custom/${encodeURIComponent(id)}`),
+  // AI Gateway
+  gatewayConfig: () => api.get('/api/gateway/config'),
+  gatewayConfigSave: (payload) => api.put('/api/gateway/config', payload),
+  gatewayProviders: () => api.get('/api/gateway/providers'),
+  gatewayProviderUpsert: (data) => api.post('/api/gateway/providers', data),
+  gatewayProviderDelete: (id) => api.del(`/api/gateway/providers/${encodeURIComponent(id)}`),
+  gatewayProviderTest: (data) => api.post('/api/gateway/providers/test', data),
+  gatewayFetchModels: (id) => api.post(`/api/gateway/providers/${encodeURIComponent(id)}/fetch-models`, {}),
+  gatewayModels: (provider = '') => api.get(`/api/gateway/models${provider ? `?provider=${encodeURIComponent(provider)}` : ''}`),
+  gatewayModelsManual: (data) => api.post('/api/gateway/models/manual', data),
+  gatewayModelsClear: (provider = '') => api.del(`/api/gateway/models${provider ? `?provider=${encodeURIComponent(provider)}` : ''}`),
 };

@@ -1,0 +1,26 @@
+{
+  "agents": [
+    {
+      "id": "custom-test-agent",
+      "name": "Custom Test Agent",
+      "enabled": true,
+      "type": "openai_compatible",
+      "command": null,
+      "args": [],
+      "cwd": null,
+      "env": {},
+      "endpoint": null,
+      "method": "POST",
+      "headers": {},
+      "bodyTemplate": {},
+      "responsePath": null,
+      "baseUrl": "http://127.0.0.1:1234/v1",
+      "apiKey": null,
+      "model": "llama-3.1-8b",
+      "timeout": 120,
+      "description": "Test custom agent",
+      "routing": [],
+      "icon": "\ud83e\udd16"
+    }
+  ]
+}

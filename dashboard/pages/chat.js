@@ -77,7 +77,7 @@ async function renderChat() {
       const el = document.querySelector(`.chat-agent[data-agent="${a.name}"]`);
       if (el) {
         const dot = el.querySelector('.agent-dot');
-        dot.className = `agent-dot ${a.status}`;
+        if (dot) dot.className = `agent-dot ${a.status}`;
       }
     });
     updateAgentStatusText();

@@ -1,0 +1,1 @@
+{"enabled":true,"exposeOpenAICompat":true,"defaultProvider":"openrouter","fallbackOrder":["openrouter","groq","cerebras","deepseek"],"rateLimit":{"enabled":false,"rpm":60},"logging":{"enabled":true,"redactKeys":true}}
